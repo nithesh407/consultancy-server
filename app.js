@@ -28,7 +28,7 @@ app.use(morgan('dev'))
 //     res.setHeader('Access-Control-Allow-Origin', allowedDomains.join(','));
 //     next();
 // });
-app.get('/', (req, res, next) => {
+app.get('/test', (req, res, next) => {
     res.status(200).json({
         message: "Hello from server!"
     })
