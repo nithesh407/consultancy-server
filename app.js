@@ -28,6 +28,11 @@ app.use(morgan('dev'))
 //     res.setHeader('Access-Control-Allow-Origin', allowedDomains.join(','));
 //     next();
 // });
+app.use('/', (req, res, next) => {
+    res.status(200).json({
+        message: "Hello from server!"
+    })
+})
 app.use('/api/v1/users', userRouter)
 app.use('/api/v1/products', productRouter)
 app.use((err, req, res, next) => {
