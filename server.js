@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import app from "./app.js";
 
 dotenv.config({ path: '.env' })
-
-app.listen(process.env.APPLICATION_PORT, () => {
-    console.log(`Server Listening at ${process.env.APPLICATION_PORT}`)
+const port = process.env.APPLICATION_PORT || 5000
+app.listen(port, () => {
+    console.log(`Server Listening at ${port}`)
 })
