@@ -2,7 +2,6 @@
   "name": "consultancy_server",
   "version": "1.0.0",
   "description": "A server application for sri vinayaga automobile shop",
-  "main": "server.js",
   "author": "nithesh_ravikumar",
   "license": "MIT",
   "type": "module",
@@ -25,7 +24,7 @@
     "uuid": "^9.0.1"
   },
   "scripts": {
-    "start": "set NODE_ENV=dev&& nodemon server.js",
+    "start": "set NODE_ENV=dev&& nodemon app.js",
     "debug": "nodemon --inspect server.js"
   }
 }
