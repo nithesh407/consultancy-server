@@ -1,13 +1,15 @@
 import express from "express"
 
-import { getUsers, addUser } from "../controllers/userController.js";
+import { sendOTP, verifyAdminLogin, verifyOTP } from "../controllers/userController.js";
 
 const router = express.Router();
 
 router
-    .route('/')
-    .get(getUsers)
-    .post(addUser)
-
+    .route('/verify/admin')
+    .post(verifyAdminLogin)
+router
+    .route('/forgot')
+    .get(sendOTP)
+    .post(verifyOTP)
 
 export default router;

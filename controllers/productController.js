@@ -1,7 +1,7 @@
 import multer from "multer"
 
 const upload = multer();
-
+import { removeBackground } from "@imgly/background-removal-node"
 import uploadFileToS3 from "../lib/helpers/s3.helper.js"
 import { v4 as uuidv4 } from "uuid";
 import { productClient } from "../lib/helpers/Dynamo/product.helper.js";
@@ -18,6 +18,9 @@ import {
 
 export const addProducts = async (req, res, next) => {
     try {
+        function toArrayBuffer(buffer) {
+            return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+        }
         upload.single('file')(req, res, async (err) => {
             if (err) {
                 return res.status(400).json({
@@ -34,20 +37,33 @@ export const addProducts = async (req, res, next) => {
                 });
             }
             const buffer = Buffer.from(file.buffer);
-            const resizedBuffer = await sharp(buffer)
-                .resize({ height: 240, width: 269 })
-                .toBuffer()
-            const { productDescription, productDiscountPrice, productOriginalPrice, productRating } = formData;
-            const productImageUrl = await uploadFileToS3(resizedBuffer, file.originalname, 'products');
+            const resizedImg = await sharp(buffer)
+                .resize({
+                    width: 368,
+                    height: 480,
+                    fit: 'contain',
+                    background: { r: 0, g: 0, b: 0, alpha: 1 }
+                })
+                .toBuffer();
+
+
+            const { productDescription, productDiscountPrice, productOriginalPrice, productRating, path, ratings, title, brand, category } = formData;
+            console.log(productDescription, productDiscountPrice, productOriginalPrice, productRating, path, ratings, title, brand, category)
+            const productImageUrl = await uploadFileToS3(resizedImg, file.originalname, 'products');
+            console.log(productImageUrl);
             const command = new PutItemCommand({
                 TableName: PRODUCT_TABLE_NAME,
                 Item: {
-                    productID: { S: uuidv4() },
-                    productImageUrl: { S: productImageUrl },
-                    productDescription: { S: productDescription },
-                    productDiscountPrice: { S: productDiscountPrice },
-                    productOriginalPrice: { S: productOriginalPrice },
-                    productRating: { S: productRating }
+                    productID: { S: (Math.floor(Math.random() * 451) + 51).toString() },
+                    productImageUrl: { L: [{ S: productImageUrl }] }, productDescription: { S: productDescription },
+                    productDiscountPrice: { N: productDiscountPrice },
+                    productOriginalPrice: { N: productOriginalPrice },
+                    productRating: { N: productRating },
+                    path: { S: path },
+                    category: { S: category },
+                    brand: { S: brand },
+                    title: { S: title },
+                    ratings: { N: ratings },
                 }
             })
 
@@ -56,6 +72,7 @@ export const addProducts = async (req, res, next) => {
             return res.status(201).json({
                 status: "success",
                 message: 'Product Created',
+                productImageUrl
             });
         });
     } catch (err) {
@@ -67,63 +84,66 @@ export const addProducts = async (req, res, next) => {
     }
 };
 
-export const getProductById = async (req, res, next) => {
-    try {
-        const { productID } = req.params;
-        const command = new GetItemCommand({
-            TableName: PRODUCT_TABLE_NAME,
-            Key: {
-                productID: { S: productID }
-            }
-        });
-        const {
-            Item: {
-                productDescription:
-                {
-                    S: productDescription
-                },
-                productImageUrl:
-                {
-                    S: productImageUrl
-                },
-                productDiscountPrice:
-                {
-                    S: productDiscountPrice
-                },
-                productOriginalPrice:
-                {
-                    S: productOriginalPrice
-                }
-            }
-        } = await productClient.send(command)
-        return res.status(200).json({
-            status: "success",
-            data: {
-                productImageUrl,
-                productDescription,
-                productDiscountPrice,
-                productOriginalPrice
-            }
-        });
-    } catch (err) {
-        console.log(err);
-        return res.status(500).json({
-            status: "fail",
-            message: "Cannot get Product"
-        });
-    }
-}
+// export const getProductById = async (req, res, next) => {
+//     try {
+//         const { productID } = req.params;
+//         const command = new GetItemCommand({
+//             TableName: PRODUCT_TABLE_NAME,
+//             Key: {
+//                 productID: { S: productID }
+//             }
+//         });
+//         const {
+//             Item: {
+//                 productDescription:
+//                 {
+//                     S: productDescription
+//                 },
+//                 productImageUrl:
+//                 {
+//                     S: productImageUrl
+//                 },
+//                 productDiscountPrice:
+//                 {
+//                     S: productDiscountPrice
+//                 },
+//                 productOriginalPrice:
+//                 {
+//                     S: productOriginalPrice
+//                 }
+//             }
+//         } = await productClient.send(command)
+//         return res.status(200).json({
+//             status: "success",
+//             data: {
+//                 productImageUrl,
+//                 productDescription,
+//                 productDiscountPrice,
+//                 productOriginalPrice
+//             }
+//         });
+//     } catch (err) {
+//         console.log(err);
+//         return res.status(500).json({
+//             status: "fail",
+//             message: "Cannot get Product"
+//         });
+//     }
+// }
 export const updateProduct = async (req, res, next) => {
     try {
         const { productID } = req.params;
         console.log(productID);
         const { productOriginalPrice, productDiscountPrice, productDescription, productRating } = req.body;
-        console.log(productDescription, productOriginalPrice, productDiscountPrice);
+        console.log(productDescription, productOriginalPrice, productDiscountPrice, productRating);
+        const originalPrice = Number(productOriginalPrice);
+        const discountPrice = Number(productDiscountPrice);
+        const rating = Number(productRating);
         const data = {
             productDescription: { S: productDescription },
-            productDiscountPrice: { S: productDiscountPrice },
-            productOriginalPrice: { S: productOriginalPrice },
-            productRating: { S: productRating }
+            productDiscountPrice: { N: discountPrice.toString() }, // Convert back to string after conversion
+            productOriginalPrice: { N: originalPrice.toString() }, // Convert back to string after conversion
+            productRating: { N: rating.toString() } // Convert back to string after conversion
         }
         const command = new UpdateItemCommand({
             TableName: PRODUCT_TABLE_NAME,
@@ -154,6 +174,7 @@ export const updateProduct = async (req, res, next) => {
         });
     }
 }
+
 export const deleteProduct = async (req, res, next) => {
     try {
         const { productID } = req.params;
@@ -184,15 +205,41 @@ export const getProducts = async (req, res, next) => {
         const command = new ScanCommand({
             TableName: PRODUCT_TABLE_NAME,
         });
+
         const { Items, Count: totalProducts } = await productClient.send(command);
 
-        //Removinf S in the Items
         const data = Items.map(item => {
-            Object.keys(item).forEach(key => {
-                item[key] = item[key]["S"];
+            const newItem = {};
+            Object.entries(item).forEach(([key, value]) => {
+                if (typeof value === 'object' && value.hasOwnProperty('S')) {
+                    newItem[key] = value['S'];
+                } else if (typeof value === 'object' && value.hasOwnProperty('N')) {
+                    newItem[key] = parseInt(value['N'], 10);
+                } else if (Array.isArray(value)) {
+                    newItem[key] = value.map(entry => {
+                        if (typeof entry === 'object' && entry.hasOwnProperty('S')) {
+                            return entry['S'];
+                        } else if (typeof entry === 'object' && entry.hasOwnProperty('N')) {
+                            return parseInt(entry['N'], 10);
+                        }
+                        return entry;
+                    });
+                } else if (typeof value === 'object' && value.hasOwnProperty('L')) {
+                    newItem[key] = value['L'].map(entry => {
+                        if (typeof entry === 'object' && entry.hasOwnProperty('S')) {
+                            return entry['S'];
+                        } else if (typeof entry === 'object' && entry.hasOwnProperty('N')) {
+                            return parseInt(entry['N'], 10);
+                        }
+                        return entry;
+                    });
+                } else {
+                    newItem[key] = value;
+                }
             });
-            return item;
+            return newItem;
         });
+
         return res.status(200).json({
             status: "success",
             totalProducts,
@@ -208,3 +255,62 @@ export const getProducts = async (req, res, next) => {
 }
 
 
+export const getProductById = async (req, res, next) => {
+    try {
+        const { productID } = req.params;
+        const command = new GetItemCommand({
+            TableName: PRODUCT_TABLE_NAME,
+            Key: {
+                productID: { S: productID }
+            }
+        });
+        const { Item } = await productClient.send(command);
+
+        if (!Item) {
+            return res.status(404).json({
+                status: "fail",
+                message: "Product not found"
+            });
+        }
+
+        const data = {};
+        Object.entries(Item).forEach(([key, value]) => {
+            if (typeof value === 'object' && value.hasOwnProperty('S')) {
+                data[key] = value['S'];
+            } else if (typeof value === 'object' && value.hasOwnProperty('N')) {
+                data[key] = parseInt(value['N'], 10);
+            } else if (Array.isArray(value)) {
+                data[key] = value.map(entry => {
+                    if (typeof entry === 'object' && entry.hasOwnProperty('S')) {
+                        return entry['S'];
+                    } else if (typeof entry === 'object' && entry.hasOwnProperty('N')) {
+                        return parseInt(entry['N'], 10);
+                    }
+                    return entry;
+                });
+            } else if (typeof value === 'object' && value.hasOwnProperty('L')) {
+                data[key] = value['L'].map(entry => {
+                    if (typeof entry === 'object' && entry.hasOwnProperty('S')) {
+                        return entry['S'];
+                    } else if (typeof entry === 'object' && entry.hasOwnProperty('N')) {
+                        return parseInt(entry['N'], 10);
+                    }
+                    return entry;
+                });
+            } else {
+                data[key] = value;
+            }
+        });
+
+        return res.status(200).json({
+            status: "success",
+            data
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({
+            status: "fail",
+            message: "Cannot get Product"
+        });
+    }
+}
