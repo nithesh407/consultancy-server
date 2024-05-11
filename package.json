@@ -24,7 +24,7 @@
     "uuid": "^9.0.1"
   },
   "scripts": {
-    "start": "set NODE_ENV=dev&& nodemon app.js",
+    "start": "node server.js",
     "debug": "nodemon --inspect server.js"
   }
 }
