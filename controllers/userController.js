@@ -23,6 +23,7 @@ const client = twilio(TwilioAccountSid, TwilioAuthToken);
 export const verifyAdminLogin = async (req, res, next) => {
     try {
         const { phone, password: userPassword } = req.body;
+        console.log(phone, userPassword)
         const command = new GetItemCommand({
             TableName: USER_TABLE_NAME,
             Key: {
