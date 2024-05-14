@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
-const allowedDomains = ['http://localhost:5173', 'http://localhost:3000'];
+const allowedDomains = ['https://consultancy-admin-five.vercel.app', 'http://localhost:3000'];
 
 app.use(cors({
     origin: function (origin, callback) {
